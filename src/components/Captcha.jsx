@@ -103,7 +103,7 @@ export const Captcha = ({ onVerify }) => {
                 value={userInput}
                 onChange={handleChange}
                 placeholder="Enter Code"
-                className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white focus:border-[var(--primary)] focus:outline-none font-mono text-center tracking-widest uppercase"
+                className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white focus:border-[var(--primary)] focus:outline-none font-mono text-center tracking-widest"
             />
         </div>
     );
