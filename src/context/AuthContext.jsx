@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
 
             if (data.success) {
                 // Return userId for verification step
-                return { success: true, userId: data.userId };
+                return { success: true, userId: data.userId, debugCode: data.debugCode };
             } else {
                 return { success: false, message: data.message };
             }

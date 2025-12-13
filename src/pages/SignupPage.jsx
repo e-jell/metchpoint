@@ -38,6 +38,10 @@ export const SignupPage = () => {
 
         const result = await register(formData.username, formData.email, formData.password);
         if (result.success) {
+            if (result.debugCode) {
+                alert(`DEV MODE: Your verification code is ${result.debugCode}`);
+                console.log("Verification Code:", result.debugCode);
+            }
             navigate('/verify', { state: { userId: result.userId } });
         } else {
             setError(result.message);

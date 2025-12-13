@@ -44,27 +44,39 @@ const sendVerificationEmail = async (email, code, type = 'Verification') => {
 // --- ROUTES ---
 
 // Register
-app.post('/api/register', async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+try {
+    const { username, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-        const user = await User.create({
+    let user;
+    try {
+        user = await User.create({
             username,
             email,
             password_hash: hashedPassword,
             verificationCode: code,
             isVerified: false
         });
-
-        await sendVerificationEmail(email, code, 'Activate Account');
-
-        res.json({ success: true, message: 'Verification code sent', userId: user.id });
-    } catch (error) {
-        console.error(error);
-        res.status(400).json({ success: false, message: 'Username or Email likely taken' });
+    } catch (dbError) {
+        console.error(dbError);
+        return res.status(400).json({ success: false, message: 'Username or Email already taken' });
     }
+
+    // Try to send email, but don't fail if it doesn't work
+    try {
+        await sendVerificationEmail(email, code, 'Activate Account');
+    } catch (emailError) {
+        console.error("Email failed to send:", emailError);
+        // Continue anyway
+    }
+
+    // DEV MODE: Return code so user can verify without email
+    res.json({ success: true, message: 'Verification code generated', userId: user.id, debugCode: code });
+} catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+}
 });
 
 // Verify Code
