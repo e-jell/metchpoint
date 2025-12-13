@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            const res = await fetch('${API_URL}/api/login', {
+            const res = await fetch(`${API_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (username, email, password) => {
         try {
-            const res = await fetch('${API_URL}/api/register', {
+            const res = await fetch(`${API_URL}/api/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, email, password })
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
 
     const verify = async (userId, code) => {
         try {
-            const res = await fetch('${API_URL}/api/verify', {
+            const res = await fetch(`${API_URL}/api/verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, code })
@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }) => {
 
     const forgotPassword = async (email) => {
         try {
-            const res = await fetch('${API_URL}/api/forgot-password', {
+            const res = await fetch(`${API_URL}/api/forgot-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
@@ -102,7 +102,7 @@ export const AuthProvider = ({ children }) => {
 
     const resetPassword = async (email, code, newPassword) => {
         try {
-            const res = await fetch('${API_URL}/api/reset-password', {
+            const res = await fetch(`${API_URL}/api/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, code, newPassword })
@@ -123,7 +123,7 @@ export const AuthProvider = ({ children }) => {
         if (!user) return;
 
         try {
-            const res = await fetch('${API_URL}/api/bet', {
+            const res = await fetch(`${API_URL}/api/bet`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
