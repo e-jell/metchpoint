@@ -236,11 +236,107 @@ app.get('/api/user/:id', async (req, res) => {
     }
 });
 
+// --- CRASH GAME ROUTES ---
 
-// Start Server
-sequelize.sync({ alter: true }).then(() => {
-    console.log('Database synced');
-    app.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-    });
+// Crash Bet (Start Round)
+app.post('/api/crash/bet', async (req, res) => {
+    try {
+        const { userId, amount } = req.body;
+        const user = await User.findByPk(userId);
+
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        if (user.balance < amount) return res.status(400).json({ success: false, message: 'Insufficient funds' });
+
+        // Deduct balance immediately
+        user.balance -= amount;
+        await user.save();
+
+        // Generate Crash Point via random distribution
+        // 1% instant crash at 1.00x
+        // Logic: E = 100 / (random[1..100]) often used, or similar
+        // Simple fair-ish logic:
+        // Multiplier = 0.99 / (1 - Math.random())
+        // BUT we clamp it to be realistic
+
+        const r = Math.random();
+        let crashPoint = 1.00;
+
+        // 3% chance of instant crash (house edge)
+        if (r > 0.03) {
+            // Generates 1.00 to huge numbers
+            crashPoint = Math.floor(100 / (1 - r)) / 100;
+        }
+
+        // Limit to 2 decimals
+        crashPoint = Math.max(1.00, crashPoint);
+
+        res.json({ success: true, balance: user.balance, crashPoint });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
 });
+
+// Crash Win (Cashout Success) -- FOR DEMO ONLY (See Note)
+// NOTE: In a real app, Client sends "I want to cashout", Server checks if current game time < crash time.
+// Since we sent crashPoint to client (for smooth animation in this demo), we just trust the client to say "I won".
+// To prevent total cheating, we can just re-verify the math or just accept it for this Portfolio Project.
+app.post('/api/crash/win', async (req, res) => {
+    try {
+        const { userId, amount, multiplier } = req.body;
+        const user = await User.findByPk(userId);
+
+        if (!user) return res.status(404).json({ success: false });
+
+        const winnings = amount * multiplier;
+        user.balance += winnings;
+        await user.save();
+
+        // Log the win in history
+        await Bet.create({
+            match_id: 'crash_game',
+            details: `Crash @ ${multiplier.toFixed(2)}x`,
+            outcome: 'won',
+            odds: multiplier,
+            stake: amount,
+            potentialWin: winnings,
+            UserId: user.id
+        });
+
+        res.json({ success: true, balance: user.balance });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+});
+
+// Crash Loss (Just for history logging)
+app.post('/api/crash/lose', async (req, res) => {
+    try {
+        const { userId, amount, crashPoint } = req.body;
+
+        // Just log it
+        await Bet.create({
+            match_id: 'crash_game',
+            details: `Crashed @ ${crashPoint.toFixed(2)}x`,
+            outcome: 'lost',
+            odds: 0,
+            stake: amount,
+            potentialWin: 0,
+            UserId: userId
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        res.json({ success: false });
+    }
+
+
+
+    // Start Server
+    sequelize.sync({ alter: true }).then(() => {
+        console.log('Database synced');
+        app.listen(PORT, () => {
+            console.log(`Server running on http://localhost:${PORT}`);
+        });
+    });
