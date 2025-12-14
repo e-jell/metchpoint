@@ -114,6 +114,7 @@ export const CrashGame = ({ onBack }) => {
             }
         } catch (e) {
             console.error(e);
+            alert("Connection Error: " + e.message + "\nCheck VITE_API_URL in Vercel.");
             setGameState('IDLE');
         }
     };
