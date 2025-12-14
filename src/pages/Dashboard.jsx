@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Navbar } from '../components/Navbar';
 import { MatchCard } from '../components/MatchCard';
+import { GamesGrid } from '../components/GamesGrid';
 import { useMatches } from '../context/MatchContext';
 import { useAuth } from '../context/AuthContext';
-import { History, TrendingUp } from 'lucide-react';
+import { History, LayoutGrid, Radio } from 'lucide-react';
 
 export const Dashboard = () => {
     const { matches } = useMatches();
     const { user } = useAuth();
+    const [activeTab, setActiveTab] = useState('matches');
 
     if (!user) return null;
 
@@ -16,25 +18,55 @@ export const Dashboard = () => {
             {/* Navbar handled by App layout */}
 
             <div className="max-w-6xl mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-bold flex items-center gap-2">
-                        <span className="w-1.5 h-6 bg-[var(--primary)] rounded-full"></span>
-                        Live Matches
-                    </h2>
-                    <span className="text-xs font-bold text-red-500 animate-pulse uppercase tracking-wider">
-                        ● Live Updates
-                    </span>
+                {/* Custom Toggle Header */}
+                <div className="flex justify-center mb-10">
+                    <div className="bg-black/40 p-1.5 rounded-xl border border-white/5 flex gap-1 relative overflow-hidden">
+                        {/* Tab Background Pill Animation */}
+                        <div className={`absolute top-1.5 bottom-1.5 rounded-lg bg-[var(--primary)] transition-all duration-300 ease-out z-0 
+                            ${activeTab === 'matches' ? 'left-1.5 w-[220px]' : 'left-[230px] w-[150px]'}`}
+                        />
+
+                        {/* Matches Tab */}
+                        <button
+                            onClick={() => setActiveTab('matches')}
+                            className={`relative z-10 flex items-center gap-3 px-6 py-3 rounded-lg transition-colors duration-300 w-[220px] justify-center
+                                ${activeTab === 'matches' ? 'text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <Radio size={18} className={activeTab === 'matches' ? 'animate-pulse' : ''} />
+                            <span className="uppercase tracking-wider text-sm font-bold">Live Matches</span>
+                        </button>
+
+                        {/* Games Tab */}
+                        <button
+                            onClick={() => setActiveTab('games')}
+                            className={`relative z-10 flex items-center gap-3 px-6 py-3 rounded-lg transition-colors duration-300 w-[150px] justify-center
+                                ${activeTab === 'games' ? 'text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <LayoutGrid size={18} />
+                            <span className="uppercase tracking-wider text-sm font-bold">Games</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Main Content Layout */}
                 <div className="flex gap-8 items-start">
 
-                    {/* Left: Match List (Vertical Stack) */}
+                    {/* Left: Content Area */}
                     <div className="flex-1 space-y-4">
-                        {matches.map(match => (
-                            <MatchCard key={match.id} match={match} />
-                        ))}
+                        {activeTab === 'matches' ? (
+                            matches.map(match => (
+                                <MatchCard key={match.id} match={match} />
+                            ))
+                        ) : (
+                            <GamesGrid />
+                        )}
+
+                        {/* Simple instruction text for games */}
+                        {activeTab === 'games' && (
+                            <div className="text-center py-8 text-gray-500 text-xs uppercase tracking-widest opacity-50">
+                                Select a game to play
+                            </div>
+                        )}
                     </div>
 
                     {/* Right: Betting History (Sidebar) */}
