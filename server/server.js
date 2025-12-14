@@ -333,10 +333,357 @@ app.post('/api/crash/lose', async (req, res) => {
 
 
 
-    // Start Server
-    sequelize.sync({ alter: true }).then(() => {
-        console.log('Database synced');
-        app.listen(PORT, () => {
-            console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// --- MINES GAME ROUTES ---
+const activeMinesGames = new Map(); // userId -> { mines: [indices], revealed: [indices], bet: amount, active: true }
+
+app.post('/api/mines/bet', async (req, res) => {
+    try {
+        const { userId, amount, mineCount } = req.body; // mineCount usually 1-24
+        const user = await User.findByPk(userId);
+
+        if (!user) return res.status(404).json({ success: false });
+        if (user.balance < amount) return res.status(400).json({ success: false, message: 'Insufficient funds' });
+
+        user.balance -= amount;
+        await user.save();
+
+        // Generate Mines
+        const mines = [];
+        while (mines.length < mineCount) {
+            const r = Math.floor(Math.random() * 25);
+            if (!mines.includes(r)) mines.push(r);
+        }
+
+        activeMinesGames.set(userId, {
+            mines,
+            revealed: [],
+            bet: amount,
+            mineCount,
+            active: true
         });
+
+        res.json({ success: true, balance: user.balance });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.post('/api/mines/reveal', async (req, res) => {
+    try {
+        const { userId, tileIndex } = req.body;
+        const game = activeMinesGames.get(userId);
+
+        if (!game || !game.active) return res.status(400).json({ success: false, message: 'No active game' });
+        if (game.revealed.includes(tileIndex)) return res.status(400).json({ success: false, message: 'Already revealed' });
+
+        // Check Bomb
+        if (game.mines.includes(tileIndex)) {
+            // BOOM
+            game.active = false;
+            activeMinesGames.delete(userId);
+
+            // Log Loss
+            await Bet.create({
+                match_id: 'mines_game',
+                details: `Mines (Boom)`,
+                outcome: 'lost',
+                odds: 0,
+                stake: game.bet,
+                potentialWin: 0,
+                UserId: userId
+            });
+
+            return res.json({ success: true, status: 'boom', mines: game.mines });
+        }
+
+        // Safe
+        game.revealed.push(tileIndex);
+
+        // Calculate Multiplier
+        // Classic formula: 0.99 * (25C(mines) / (25-revealed)C(mines)) ... simplified:
+        // Or roughly: Current Multiplier based on odds of picking safe
+        // Simply: Payout goes up as (25 - mines) / (25 - mines - revealed)
+        // Let's use a compounding multiplier 
+
+        const totalTiles = 25;
+        const safeTiles = totalTiles - game.mineCount;
+        const revealedCount = game.revealed.length;
+
+        // Probability of hitting safe was: (Safe - (revealed-1)) / (Total - (revealed-1))
+        // We invert for Multiplier
+        // This is complex to do perfectly, let's use a standard lookup or approximation?
+        // Approx: 
+        let multiplier = 1.0;
+        for (let i = 0; i < revealedCount; i++) {
+            // For each step
+            const remainingSafe = safeTiles - i;
+            const remainingTotal = totalTiles - i;
+            const odd = remainingTotal / remainingSafe;
+            multiplier *= odd;
+        }
+        multiplier = multiplier * 0.99; // House edge
+
+        // Round
+        // multiplier = Math.floor(multiplier * 100) / 100; 
+
+        res.json({ success: true, status: 'safe', multiplier, tileIndex });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.post('/api/mines/cashout', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const game = activeMinesGames.get(userId);
+
+        if (!game || !game.active) return res.status(400).json({ success: false });
+
+        // Calculate Final Multiplier same as above logic
+        const totalTiles = 25;
+        const safeTiles = totalTiles - game.mineCount;
+        const revealedCount = game.revealed.length;
+        let multiplier = 1.0;
+        for (let i = 0; i < revealedCount; i++) {
+            const remainingSafe = safeTiles - i;
+            const remainingTotal = totalTiles - i;
+            const odd = remainingTotal / remainingSafe;
+            multiplier *= odd;
+        }
+        multiplier = multiplier * 0.99;
+
+        const winnings = game.bet * multiplier;
+        const user = await User.findByPk(userId);
+        user.balance += winnings;
+        await user.save();
+
+        activeMinesGames.delete(userId);
+
+        // Log Win
+        await Bet.create({
+            match_id: 'mines_game',
+            details: `Mines Cashout`,
+            outcome: 'won',
+            odds: multiplier,
+            stake: game.bet,
+            potentialWin: winnings,
+            UserId: userId
+        });
+
+        res.json({ success: true, balance: user.balance, winnings });
+
+    } catch (error) {
+        res.status(500).json({ success: false });
+    }
+});
+
+// --- HILO GAME ROUTES ---
+const activeHiloGames = new Map(); // userId -> { currentCard: {rank, suit}, bet: amount, rounds: 0, multiplier: 1.0 }
+
+// Helper for Deck
+const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // 11=J, 12=Q, 13=K, 14=A
+const SUITS = ['H', 'D', 'C', 'S'];
+const drawCard = () => {
+    const r = RANKS[Math.floor(Math.random() * RANKS.length)];
+    const s = SUITS[Math.floor(Math.random() * SUITS.length)];
+    return { rank: r, suit: s };
+};
+
+app.post('/api/hilo/start', async (req, res) => {
+    try {
+        const { userId, amount } = req.body;
+        const user = await User.findByPk(userId);
+        if (!user) return res.status(404).json({ success: false });
+        if (user.balance < amount) return res.status(400).json({ success: false, message: 'Insufficient funds' });
+
+        user.balance -= amount;
+        await user.save();
+
+        const card = drawCard();
+        activeHiloGames.set(userId, {
+            currentCard: card,
+            bet: amount,
+            rounds: 0,
+            multiplier: 1.00,
+            active: true
+        });
+
+        res.json({ success: true, balance: user.balance, card });
+    } catch (e) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/hilo/next', async (req, res) => {
+    try {
+        const { userId, prediction } = req.body; // 'higher', 'lower', 'skip'(if we had skip)
+        const game = activeHiloGames.get(userId);
+        if (!game || !game.active) return res.status(400).json({ success: false });
+
+        const oldCard = game.currentCard;
+        // Draw new card (simple independent draw, not deck depletion for infinite play usually)
+        let newCard = drawCard();
+        // Prevent exact tie for simplicity? Or tie = push? Or tie = lose?
+        // Standard Hilo: Tie usually pushes or loses. Let's say Tie = PUSH (Keep playing, same multiplier).
+        // To make it fun, let's just redraw if same rank to avoid confusion for now.
+        while (newCard.rank === oldCard.rank) {
+            newCard = drawCard();
+        }
+
+        let won = false;
+        if (prediction === 'higher' && newCard.rank > oldCard.rank) won = true;
+        if (prediction === 'lower' && newCard.rank < oldCard.rank) won = true;
+
+        if (won) {
+            // Calculate Multiplier increase
+            // Base probability
+            // If oldCard is 2, Higher is likely (low payout), Lower is impossible (or very high payout)
+            // Simplified Multiplier Logic: 1.2x per correct guess hardcoded for demo, or:
+            // Dynamic: 1 / Probability
+
+            const totalRanks = 13;
+            let winningOptions = 0;
+            if (prediction === 'higher') winningOptions = 14 - oldCard.rank; // e.g. if 2(rank2), 12 cards higher.
+            if (prediction === 'lower') winningOptions = oldCard.rank - 2; // e.g. if 14(A), 12 cards lower.
+
+            // Fix edge case if 2 or A (making impossible bets should be disabled on frontend)
+            if (winningOptions <= 0) winningOptions = 1; // Should not trigger
+
+            let probability = winningOptions / 13;
+            // Add house edge (5%)
+            let roundMult = (0.95 / probability);
+
+            game.multiplier *= roundMult;
+            game.currentCard = newCard;
+            game.rounds++;
+
+            res.json({ success: true, status: 'won', card: newCard, multiplier: game.multiplier });
+        } else {
+            // Lost
+            game.active = false;
+            activeHiloGames.delete(userId);
+
+            await Bet.create({
+                match_id: 'hilo_game',
+                details: `Hilo Loss (High Score: ${game.rounds})`,
+                outcome: 'lost', odd: 0, stake: game.bet, potentialWin: 0, UserId: userId
+            });
+
+            res.json({ success: true, status: 'lost', card: newCard });
+        }
+
+    } catch (e) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/hilo/cashout', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const game = activeHiloGames.get(userId);
+        if (!game || !game.active) return res.status(400).json({ success: false });
+
+        if (game.rounds === 0) {
+            // Instant cashout without playing? Usually allowed but just 1.0x? 
+            // Let's allow it if multiplier > 1
+        }
+
+        const winnings = game.bet * game.multiplier;
+        const user = await User.findByPk(userId);
+        user.balance += winnings;
+        await user.save();
+
+        activeHiloGames.delete(userId);
+
+        await Bet.create({
+            match_id: 'hilo_game',
+            details: `Hilo Cashout`,
+            outcome: 'won', odds: game.multiplier, stake: game.bet, potentialWin: winnings, UserId: userId
+        });
+
+        res.json({ success: true, balance: user.balance, winnings });
+
+    } catch (e) { res.status(500).json({ success: false }); }
+});
+
+// --- PLINKO GAME ROUTES ---
+
+app.post('/api/plinko/bet', async (req, res) => {
+    try {
+        const { userId, amount, rows = 16, risk = 'medium' } = req.body;
+        const user = await User.findByPk(userId);
+
+        if (!user) return res.status(404).json({ success: false });
+        if (user.balance < amount) return res.status(400).json({ success: false, message: 'Insufficient funds' });
+
+        user.balance -= amount;
+        await user.save();
+
+        // PLINKO LOGIC
+        // We simulate the path: "Left" or "Right" at each peg row.
+        // Total rows determine spread.
+        // Standard Plinko: Result is approximately Normal Distribution (Binomial).
+        // Buckets: 0 to rows.
+        // We generate a "path" array of 0s (L) and 1s (R).
+        // The bucket index = sum(path).
+
+        // Multipliers depend on Risk. 
+        // Example for 16 rows, Medium risk:
+        // Middle buckets [7,8,9] have < 1x.
+        // Edges have > 10x or 100x.
+
+        // Let's use a simplified logical model for multipliers:
+        // Just defining a hardcoded multiplier map for demo simplicity or calculating it?
+        // Let's generate a random path first.
+
+        const path = [];
+        for (let i = 0; i < rows; i++) {
+            path.push(Math.random() > 0.5 ? 1 : 0);
+        }
+
+        const bucketIndex = path.reduce((a, b) => a + b, 0); // 0 to 16
+
+        // Determine Multiplier based on bucket distance from center
+        // Center for 16 rows is 8.
+        const distance = Math.abs(bucketIndex - (rows / 2));
+
+        // Exponential payout based on distance
+        // e.g. 0.5 * (risk_factor ^ distance)
+        // Tune this for 99% RTP theoretically? Hard to do on fly.
+        // Let's use a "Fun" distribution.
+
+        let multiplier = 0.5; // Center loss
+        if (distance >= 3) multiplier = 1.2;
+        if (distance >= 5) multiplier = 3.5;
+        if (distance >= 7) multiplier = 15; // Near edge
+        if (distance === 8) multiplier = 110; // Edge (0 or 16) matches 16 rows usually ~1000x but let's be conservative
+
+        const winnings = amount * multiplier;
+        if (winnings > 0) {
+            user.balance += winnings;
+            await user.save();
+        }
+
+        await Bet.create({
+            match_id: 'plinko_game',
+            details: `Plinko (Bucket ${bucketIndex})`,
+            outcome: winnings > amount ? 'won' : 'lost',
+            odds: multiplier,
+            stake: amount,
+            potentialWin: winnings,
+            UserId: userId
+        });
+
+        res.json({ success: true, balance: user.balance, path, bucketIndex, multiplier, winnings });
+
+    } catch (e) { res.status(500).json({ success: false }); }
+});
+
+// Start Server
+sequelize.sync({ alter: true }).then(() => {
+    console.log('Database synced');
+    app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
     });
+});

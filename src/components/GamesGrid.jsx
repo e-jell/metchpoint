@@ -45,7 +45,10 @@ export const GamesGrid = () => {
             </div>
 
             {/* 2. PLINKO */}
-            <div className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer">
+            <div
+                onClick={() => onSelectGame && onSelectGame('plinko')}
+                className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer"
+            >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--primary)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 <div className="flex justify-between items-start mb-4">
@@ -97,7 +100,10 @@ export const GamesGrid = () => {
             </div>
 
             {/* 3. DICE */}
-            <div className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer">
+            <div
+                onClick={() => onSelectGame && onSelectGame('dice')}
+                className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer"
+            >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--primary)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 <div className="flex justify-between items-start mb-4">
@@ -164,7 +170,10 @@ export const GamesGrid = () => {
 
 
             {/* 5. HILO */}
-            <div className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer md:col-span-2 lg:col-span-1">
+            <div
+                onClick={() => onSelectGame && onSelectGame('hilo')}
+                className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer md:col-span-2 lg:col-span-1"
+            >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--primary)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 <div className="flex justify-between items-start mb-4">
