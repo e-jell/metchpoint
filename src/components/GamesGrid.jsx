@@ -1,12 +1,15 @@
 import React from 'react';
 import { Rocket, Diamond, Bomb, Crown, ChevronUp, ChevronDown, Dices } from 'lucide-react';
 
-export const GamesGrid = () => {
+export const GamesGrid = ({ onSelectGame }) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
 
             {/* 1. CRASH */}
-            <div className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer">
+            <div
+                onClick={() => onSelectGame && onSelectGame('crash')}
+                className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer"
+            >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--primary)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 <div className="flex justify-between items-start mb-4">
@@ -133,7 +136,10 @@ export const GamesGrid = () => {
             </div>
 
             {/* 4. MINES */}
-            <div className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer">
+            <div
+                onClick={() => onSelectGame && onSelectGame('mines')}
+                className="group relative bg-black/40 border border-white/5 rounded-xl p-6 hover:border-[var(--primary)] transition-all duration-300 overflow-hidden cursor-pointer"
+            >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--primary)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 <div className="flex justify-between items-start mb-4">
