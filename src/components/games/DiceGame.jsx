@@ -39,6 +39,12 @@ export const DiceGame = ({ onBack }) => {
                     condition: 'under'
                 })
             });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`Server Error ${res.status}: ${text.substring(0, 100)}...`);
+            }
+
             const data = await res.json();
 
             if (data.success) {

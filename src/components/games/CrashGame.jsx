@@ -102,6 +102,12 @@ export const CrashGame = ({ onBack }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id, amount: betAmount })
             });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`Server Error ${res.status}: ${text.substring(0, 50)}...`);
+            }
+
             const data = await res.json();
 
             if (data.success) {
