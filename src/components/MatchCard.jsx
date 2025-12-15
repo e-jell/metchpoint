@@ -67,6 +67,28 @@ export const MatchCard = ({ match }) => {
         setLoading(false);
     };
 
+    const getScoreDisplay = () => {
+        if (!match.score) return 'VS';
+        if (typeof match.score === 'string') return match.score;
+
+        // Chess Case
+        if (match.score.eval) return match.score.eval;
+
+        // Football Case (Numbers)
+        if (typeof match.score.home === 'number') {
+            return `${match.score.home} - ${match.score.away}`;
+        }
+
+        // Cricket Case (Strings like "145/3")
+        if (match.score.home) {
+            const h = match.score.home.toString().split('/')[0];
+            const a = match.score.away ? match.score.away.toString().split('/')[0] : '0';
+            return `${h} - ${a}`;
+        }
+
+        return 'VS';
+    };
+
     return (
         <div className="bg-[#1a2321] border border-white/5 p-4 rounded-xl hover:border-[var(--primary)]/30 transition-all group">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -95,11 +117,7 @@ export const MatchCard = ({ match }) => {
                                 {match.status === 'LIVE' ? `LIVE • ${match.time || match.score.overs || ''}` : match.status}
                             </div>
                             <div className="text-3xl font-black text-white font-mono bg-black/30 px-4 py-1 rounded-lg tracking-widest border border-white/5">
-                                {typeof match.score === 'object' && match.score.home && typeof match.score.home === 'number'
-                                    ? `${match.score.home} - ${match.score.away}`
-                                    : typeof match.score === 'string' ? match.score
-                                        : `${match.score.home.split('/')[0]} - ${typeof match.score.away === 'string' && match.score.away.includes('/') ? match.score.away.split('/')[0] : 0}`
-                                }
+                                {getScoreDisplay()}
                             </div>
                         </div>
 
