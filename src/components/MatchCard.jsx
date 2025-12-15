@@ -2,9 +2,44 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 
+const TeamLogo = ({ name }) => {
+    // Map common names to flag codes
+    const flags = {
+        'India': 'in',
+        'Australia': 'au',
+        'England': 'gb-eng',
+        'New Zealand': 'nz',
+        'Magnus Carlsen': 'no',
+        'Hikaru Nakamura': 'us',
+        'Real Madrid': 'es', // Use country flag for now as fallback
+        'Barcelona': 'es',
+        'Arsenal': 'gb-eng',
+        'Liverpool': 'gb-eng'
+    };
+
+    const code = flags[name];
+
+    if (code) {
+        return (
+            <img
+                src={`https://flagcdn.com/w80/${code}.png`}
+                alt={name}
+                className="w-10 h-10 rounded-full object-cover border-2 border-white/10 shadow-lg"
+            />
+        );
+    }
+
+    return (
+        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-white border-2 border-white/10">
+            {name.substring(0, 1)}
+        </div>
+    );
+};
+
 export const MatchCard = ({ match }) => {
     const { placeBet, user } = useAuth();
     const [selectedOutcome, setSelectedOutcome] = useState(null);
+
     const [stake, setStake] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
@@ -46,25 +81,35 @@ export const MatchCard = ({ match }) => {
                     <div className="flex items-center justify-between gap-4">
 
                         {/* Team A (Home) */}
-                        <div className="flex-1 text-right">
-                            <div className="text-white font-bold text-lg leading-none">{match.homeTeam}</div>
-                            <div className="text-xs text-gray-500 font-mono mt-1">HOME</div>
+                        <div className="flex-1 text-right flex items-center justify-end gap-3">
+                            <div>
+                                <div className="text-white font-bold text-lg leading-none">{match.home}</div>
+                                <div className="text-xs text-gray-500 font-mono mt-1">HOME</div>
+                            </div>
+                            <TeamLogo name={match.home} />
                         </div>
 
                         {/* Score Center */}
                         <div className="flex flex-col items-center px-4 min-w-[120px]">
                             <div className="text-xs text-red-500 font-bold uppercase tracking-widest mb-1 animate-pulse">
-                                {match.status === 'LIVE' ? `LIVE • ${match.time}'` : match.status}
+                                {match.status === 'LIVE' ? `LIVE • ${match.time || match.score.overs || ''}` : match.status}
                             </div>
                             <div className="text-3xl font-black text-white font-mono bg-black/30 px-4 py-1 rounded-lg tracking-widest border border-white/5">
-                                {match.score.home}-{match.score.away}
+                                {typeof match.score === 'object' && match.score.home && typeof match.score.home === 'number'
+                                    ? `${match.score.home} - ${match.score.away}`
+                                    : typeof match.score === 'string' ? match.score
+                                        : `${match.score.home.split('/')[0]} - ${typeof match.score.away === 'string' && match.score.away.includes('/') ? match.score.away.split('/')[0] : 0}`
+                                }
                             </div>
                         </div>
 
                         {/* Team B (Away) */}
-                        <div className="flex-1 text-left">
-                            <div className="text-white font-bold text-lg leading-none">{match.awayTeam}</div>
-                            <div className="text-xs text-gray-500 font-mono mt-1">AWAY</div>
+                        <div className="flex-1 text-left flex items-center justify-start gap-3">
+                            <TeamLogo name={match.away} />
+                            <div>
+                                <div className="text-white font-bold text-lg leading-none">{match.away}</div>
+                                <div className="text-xs text-gray-500 font-mono mt-1">AWAY</div>
+                            </div>
                         </div>
                     </div>
 
