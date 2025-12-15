@@ -67,13 +67,8 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Username or Email already taken' });
         }
 
-        // Try to send email, but don't fail if it doesn't work
-        try {
-            await sendVerificationEmail(email, code, 'Activate Account');
-        } catch (emailError) {
-            console.error("Email failed to send:", emailError);
-            // Continue anyway
-        }
+        // Send email asynchronously (Fire and Forget) to prevent blocking
+        sendVerificationEmail(email, code, 'Activate Account').catch(console.error);
 
         // DEV MODE: Return code so user can verify without email
         res.json({ success: true, message: 'Verification code generated', userId: user.id, debugCode: code });
