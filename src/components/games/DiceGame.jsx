@@ -42,7 +42,7 @@ export const DiceGame = ({ onBack }) => {
 
             if (!res.ok) {
                 const text = await res.text();
-                throw new Error(`Server Error ${res.status}: ${text.substring(0, 100)}...`);
+                throw new Error(`Target: ${API_URL}\nStatus: ${res.status}\nResponse: ${text.substring(0, 50)}...`);
             }
 
             const data = await res.json();
